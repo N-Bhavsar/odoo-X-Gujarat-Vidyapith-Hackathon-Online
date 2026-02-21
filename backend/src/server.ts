@@ -90,50 +90,6 @@ io.on('connection', (socket) => {
   })
 })
 
-// Broadcast location updates via Socket.io when location is recorded
-app.use((req: Request, res: Response, next: NextFunction) => {
-  const originalSend = res.send
-
-  res.send = function (data: any) {
-    // Check if this is a location recording endpoint
-    if (req.method === 'POST' && req.path === '/api/gps/locations' && res.statusCode === 201) {
-      try {
-        const responseData = typeof data === 'string' ? JSON.parse(data) : data
-        if (responseData.data && responseData.data.vehicleId) {
-          const location = responseData.data
-          io.to(`vehicle-${location.vehicleId}`).emit('location-update', {
-            vehicleId: location.vehicleId,
-            tripId: location.tripId,
-            latitude: location.latitude,
-            longitude: location.longitude,
-            speed: location.speed,
-            heading: location.heading,
-            timestamp: location.timestamp,
-            accuracy: location.accuracy
-          })
-          if (location.tripId) {
-            io.to(`trip-${location.tripId}`).emit('location-update', {
-              vehicleId: location.vehicleId,
-              tripId: location.tripId,
-              latitude: location.latitude,
-              longitude: location.longitude,
-              speed: location.speed,
-              heading: location.heading,
-              timestamp: location.timestamp,
-              accuracy: location.accuracy
-            })
-          }
-        }
-      } catch (e) {
-        // Silently fail if not JSON
-      }
-    }
-    return originalSend.call(this, data)
-  }
-
-  next()
-})
-
 // Error handling middleware
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err.stack)

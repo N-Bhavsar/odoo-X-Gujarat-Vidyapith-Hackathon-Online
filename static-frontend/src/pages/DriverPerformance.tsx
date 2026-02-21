@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { driverService } from "@/services";
 
 interface Driver {
   id: number;
@@ -13,14 +14,6 @@ interface Driver {
   status: string;
 }
 
-const drivers: Driver[] = [
-  { id: 1, name: "John Kumar", license: "23223", expiry: "22/36", completionRate: "92%", safetyScore: "89%", complaints: 4, status: "On Duty" },
-  { id: 2, name: "Alex Singh", license: "45678", expiry: "25/38", completionRate: "95%", safetyScore: "94%", complaints: 1, status: "On Duty" },
-  { id: 3, name: "Ravi Patel", license: "78901", expiry: "23/35", completionRate: "88%", safetyScore: "82%", complaints: 6, status: "Off Duty" },
-  { id: 4, name: "Priya M", license: "12345", expiry: "24/37", completionRate: "96%", safetyScore: "97%", complaints: 0, status: "On Duty" },
-  { id: 5, name: "Suresh R", license: "67890", expiry: "21/34", completionRate: "78%", safetyScore: "71%", complaints: 9, status: "Suspended" },
-];
-
 const statusClass = (s: string) => {
   switch (s) {
     case "On Duty": return "status-available";
@@ -32,6 +25,42 @@ const statusClass = (s: string) => {
 
 const DriverPerformance = () => {
   const [search, setSearch] = useState("");
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadDrivers = async () => {
+    try {
+      const response = await driverService.listDrivers();
+      const mapped = response.drivers.map((driver) => {
+        const completionRate = driver.totalTrips
+          ? Math.round((driver.completedTrips / driver.totalTrips) * 100)
+          : 0;
+
+        const statusLabel = driver.status
+          .split("_")
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(" ");
+
+        return {
+          id: driver.id,
+          name: `${driver.firstName} ${driver.lastName}`,
+          license: driver.licenseNumber,
+          expiry: new Date(driver.licenseExpiryDate).toLocaleDateString(),
+          completionRate: `${completionRate}%`,
+          safetyScore: `${Math.round(driver.safetyScore * 10)}%`,
+          complaints: driver.cancelledTrips,
+          status: statusLabel,
+        };
+      });
+      setDrivers(mapped);
+    } catch (err: any) {
+      setError(err.message || "Failed to load drivers");
+    }
+  };
+
+  useEffect(() => {
+    loadDrivers();
+  }, []);
 
   const filtered = drivers.filter((d) =>
     d.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -46,6 +75,7 @@ const DriverPerformance = () => {
       </div>
 
       <div className="f1-card">
+        {error && <p className="text-xs text-destructive mb-3">{error}</p>}
         <div className="flex gap-3 mb-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

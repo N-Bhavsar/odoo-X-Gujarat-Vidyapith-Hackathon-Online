@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Car,
@@ -12,8 +12,20 @@ import {
   X,
   Flag,
   ChevronRight,
+  LogOut,
+  User,
+  Settings,
 } from "lucide-react";
 import racingBg from "@/assets/racing-bg.jpg";
+import { authService } from "@/services";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Command Center" },
@@ -32,6 +44,44 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        } else {
+          const response = await authService.getProfile();
+          setUser(response.user);
+          localStorage.setItem("user", JSON.stringify(response.user));
+        }
+      } catch (error) {
+        console.error("Failed to load user profile:", error);
+      }
+    };
+    loadUser();
+  }, []);
+
+  const handleLogout = () => {
+    authService.logout();
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
+
+  const getUserInitials = () => {
+    if (!user) return "U";
+    const first = user.firstName?.charAt(0) || "";
+    const last = user.lastName?.charAt(0) || "";
+    return (first + last).toUpperCase() || "U";
+  };
+
+  const getUserName = () => {
+    if (!user) return "User";
+    return `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User";
+  };
 
   const currentPage = navItems.find((item) => item.to === location.pathname);
 
@@ -131,9 +181,36 @@ const Layout = ({ children }: LayoutProps) => {
               <div className="h-2 w-2 rounded-full bg-f1-green animate-pit-pulse" />
               <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Live</span>
             </div>
-            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/20 flex items-center justify-center shadow-lg shadow-primary/10">
-              <span className="text-xs font-bold text-primary">FM</span>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="h-9 w-9 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/20 flex items-center justify-center shadow-lg shadow-primary/10 hover:scale-105 transition-transform cursor-pointer">
+                  <span className="text-xs font-bold text-primary">{getUserInitials()}</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{getUserName()}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{user?.email || ""}</p>
+                    <p className="text-xs leading-none text-primary capitalize">{user?.role?.replace(/_/g, " ") || ""}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/dashboard")} className="cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer">
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600 focus:text-red-600">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
         <div className="p-6">{children}</div>

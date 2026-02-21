@@ -202,7 +202,8 @@ const VehiclesPage: React.FC = () => {
                   <TableCell>Plate</TableCell>
                   <TableCell>Model</TableCell>
                   <TableCell>Type</TableCell>
-                  <TableCell>Capacity</TableCell>
+                  <TableCell>Seats</TableCell>
+                  <TableCell>Max Load (kg)</TableCell>
                   <TableCell>Odometer</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="right">Actions</TableCell>
@@ -211,7 +212,7 @@ const VehiclesPage: React.FC = () => {
               <TableBody>
                 {vehicles.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center">
+                    <TableCell colSpan={9} align="center">
                       <Typography variant="body2" color="textSecondary" sx={{ py: 4 }}>
                         No vehicles found
                       </Typography>
@@ -235,6 +236,11 @@ const VehiclesPage: React.FC = () => {
                         <Chip label={getTypeLabel(vehicle.type)} size="small" />
                       </TableCell>
                       <TableCell>{vehicle.seatingCapacity || 'N/A'}</TableCell>
+                      <TableCell>
+                        {vehicle.maxLoadCapacity 
+                          ? vehicle.maxLoadCapacity.toLocaleString() 
+                          : 'N/A'}
+                      </TableCell>
                       <TableCell>{vehicle.currentMileage.toLocaleString()} km</TableCell>
                       <TableCell>
                         <Chip

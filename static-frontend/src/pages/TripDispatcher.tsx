@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { tripService } from "@/services";
 
 interface Trip {
   id: number;
@@ -15,27 +16,56 @@ interface Trip {
   cargo: number;
 }
 
-const initialTrips: Trip[] = [
-  { id: 1, fleetType: "Trailer Truck", origin: "Mumbai", destination: "Pune", status: "On Way", driver: "Alex", cargo: 450 },
-  { id: 2, fleetType: "Van", origin: "Delhi", destination: "Jaipur", status: "Completed", driver: "Ravi", cargo: 300 },
-  { id: 3, fleetType: "Mini Truck", origin: "Chennai", destination: "Bangalore", status: "Draft", driver: "Priya", cargo: 200 },
-];
-
 const statusClass = (s: string) => {
   switch (s) {
-    case "On Way": return "status-on-trip";
-    case "Completed": return "status-done";
-    case "Draft": return "status-new";
-    case "Cancelled": return "status-retired";
-    default: return "status-pill";
+    case "On Way":
+    case "In Progress":
+      return "status-on-trip";
+    case "Completed":
+    case "completed":
+      return "status-done";
+    case "Draft":
+    case "Scheduled":
+      return "status-new";
+    case "Cancelled":
+    case "cancelled":
+      return "status-retired";
+    default:
+      return "status-pill";
   }
 };
 
 const TripDispatcher = () => {
-  const [trips, setTrips] = useState(initialTrips);
+  const [trips, setTrips] = useState<Trip[]>([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ vehicle: "", cargo: "", driver: "", origin: "", destination: "", fuelCost: "" });
+  const [form, setForm] = useState({ vehicleId: "", driverId: "", origin: "", destination: "", cargo: "" });
+  const [error, setError] = useState<string | null>(null);
+
+  const loadTrips = async () => {
+    try {
+      const response = await tripService.listTrips();
+      const mapped = response.trips.map((t) => ({
+        id: t.id,
+        fleetType: t.vehicle?.vehicleNumber || "Fleet",
+        origin: t.origin,
+        destination: t.destination,
+        status: t.status
+          .split("_")
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(" "),
+        driver: t.driver ? `${t.driver.firstName} ${t.driver.lastName}` : "Driver",
+        cargo: t.cargoWeightKg || 0,
+      }));
+      setTrips(mapped);
+    } catch (err: any) {
+      setError(err.message || "Failed to load trips");
+    }
+  };
+
+  useEffect(() => {
+    loadTrips();
+  }, []);
 
   const filtered = trips.filter((t) =>
     t.origin.toLowerCase().includes(search.toLowerCase()) ||
@@ -43,18 +73,23 @@ const TripDispatcher = () => {
     t.driver.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleCreate = () => {
-    setTrips([...trips, {
-      id: trips.length + 1,
-      fleetType: form.vehicle,
-      origin: form.origin,
-      destination: form.destination,
-      status: "Draft",
-      driver: form.driver,
-      cargo: Number(form.cargo),
-    }]);
-    setForm({ vehicle: "", cargo: "", driver: "", origin: "", destination: "", fuelCost: "" });
-    setShowForm(false);
+  const handleCreate = async () => {
+    setError(null);
+    try {
+      await tripService.createTrip({
+        vehicleId: Number(form.vehicleId),
+        driverId: Number(form.driverId),
+        origin: form.origin,
+        destination: form.destination,
+        scheduledDeparture: new Date().toISOString(),
+        cargoWeightKg: Number(form.cargo) || undefined,
+      });
+      setForm({ vehicleId: "", driverId: "", origin: "", destination: "", cargo: "" });
+      setShowForm(false);
+      loadTrips();
+    } catch (err: any) {
+      setError(err.message || "Failed to create trip");
+    }
   };
 
   return (
@@ -70,6 +105,7 @@ const TripDispatcher = () => {
       </div>
 
       <div className="f1-card">
+        {error && <p className="text-xs text-destructive mb-3">{error}</p>}
         <div className="flex gap-3 mb-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -110,12 +146,11 @@ const TripDispatcher = () => {
           </DialogHeader>
           <div className="space-y-4">
             {[
-              { label: "Select Vehicle", key: "vehicle", placeholder: "Trailer Truck" },
+              { label: "Vehicle ID", key: "vehicleId", placeholder: "1" },
+              { label: "Driver ID", key: "driverId", placeholder: "1" },
               { label: "Cargo Weight (Kg)", key: "cargo", placeholder: "450" },
-              { label: "Select Driver", key: "driver", placeholder: "Alex Kumar" },
               { label: "Origin Address", key: "origin", placeholder: "Mumbai" },
-              { label: "Destination", key: "destination", placeholder: "Pune" },
-              { label: "Estimated Fuel Cost", key: "fuelCost", placeholder: "₹5000" },
+              { label: "Destination", key: "destination", placeholder: "Pune" }
             ].map((f) => (
               <div key={f.key}>
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">{f.label}</Label>

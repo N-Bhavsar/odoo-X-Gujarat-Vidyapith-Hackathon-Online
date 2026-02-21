@@ -10,6 +10,7 @@ import MaintenanceLogs from './pages/MaintenanceLogs'
 import ExpenseTracking from './pages/ExpenseTracking'
 import DriverProfiles from './pages/DriverProfiles'
 import Analytics from './pages/Analytics'
+import GPSTracking from './pages/GPSTracking'
 import ProtectedRoute from './components/ProtectedRoute'
 import './App.css'
 
@@ -29,6 +30,7 @@ function App() {
         <Route path="/expenses" element={<ProtectedRoute><ExpenseTracking /></ProtectedRoute>} />
         <Route path="/drivers" element={<ProtectedRoute><DriverProfiles /></ProtectedRoute>} />
         <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+        <Route path="/gps" element={<ProtectedRoute><GPSTracking /></ProtectedRoute>} />
       </Routes>
     </div>
   )

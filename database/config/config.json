@@ -1,7 +1,7 @@
 {
   "development": {
     "username": "postgres",
-    "password": "postgres",
+    "password": "Nisarg@2006",
     "database": "fleetflow",
     "host": "localhost",
     "dialect": "postgres"

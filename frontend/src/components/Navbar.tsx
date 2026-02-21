@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../store/store'
 import { logout } from '../store/slices/authSlice'
-import { DirectionsCar, AccountCircle } from '@mui/icons-material'
+import { DirectionsCar, AccountCircle, GpsFixed as GpsIcon } from '@mui/icons-material'
 
 const Navbar = () => {
   const navigate = useNavigate()
@@ -54,6 +54,9 @@ const Navbar = () => {
           </Button>
           <Button color="inherit" component={Link} to="/analytics">
             Analytics
+          </Button>
+          <Button color="inherit" component={Link} to="/gps" startIcon={<GpsIcon />} sx={{ color: '#64ffda' }}>
+            GPS
           </Button>
         </Box>
 

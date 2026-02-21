@@ -37,7 +37,7 @@ const initialState: VehicleState = {
 // Async thunks
 export const fetchVehicles = createAsyncThunk(
   'vehicles/fetchVehicles',
-  async (filters?: VehicleFilters, { rejectWithValue }) => {
+  async (filters: VehicleFilters | undefined, { rejectWithValue }) => {
     try {
       const response = await vehicleService.getVehicles(filters)
       return response

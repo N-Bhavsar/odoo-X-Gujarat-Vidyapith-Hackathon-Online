@@ -37,6 +37,7 @@ export interface Vehicle {
   status: VehicleStatus
   currentMileage: number
   seatingCapacity?: number
+  maxLoadCapacity?: number
   color?: string
   purchasePrice?: number
   currentValue?: number

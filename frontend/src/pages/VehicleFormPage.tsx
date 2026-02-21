@@ -35,6 +35,7 @@ interface VehicleFormData {
   status: VehicleStatus
   currentMileage: number
   seatingCapacity: number
+  maxLoadCapacity: number
   color: string
   purchasePrice: number
   currentValue: number
@@ -65,6 +66,7 @@ const VehicleFormPage: React.FC = () => {
     status: VehicleStatus.ACTIVE,
     currentMileage: 0,
     seatingCapacity: 5,
+    maxLoadCapacity: 0,
     color: '',
     purchasePrice: 0,
     currentValue: 0,
@@ -101,6 +103,7 @@ const VehicleFormPage: React.FC = () => {
         status: currentVehicle.status || VehicleStatus.ACTIVE,
         currentMileage: Number(currentVehicle.currentMileage) || 0,
         seatingCapacity: currentVehicle.seatingCapacity || 5,
+        maxLoadCapacity: Number(currentVehicle.maxLoadCapacity) || 0,
         color: currentVehicle.color || '',
         purchasePrice: Number(currentVehicle.purchasePrice) || 0,
         currentValue: Number(currentVehicle.currentValue) || 0,
@@ -185,6 +188,7 @@ const VehicleFormPage: React.FC = () => {
     if (formData.color && formData.color.trim()) cleanedData.color = formData.color.trim()
     if (formData.currentMileage) cleanedData.currentMileage = Number(formData.currentMileage)
     if (formData.seatingCapacity) cleanedData.seatingCapacity = Number(formData.seatingCapacity)
+    if (formData.maxLoadCapacity) cleanedData.maxLoadCapacity = Number(formData.maxLoadCapacity)
     if (formData.purchasePrice) cleanedData.purchasePrice = Number(formData.purchasePrice)
     if (formData.currentValue) cleanedData.currentValue = Number(formData.currentValue)
     if (formData.lastServiceDate) cleanedData.lastServiceDate = formData.lastServiceDate
@@ -404,7 +408,7 @@ const VehicleFormPage: React.FC = () => {
               </TextField>
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
                 type="number"
@@ -416,7 +420,20 @@ const VehicleFormPage: React.FC = () => {
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Max Load Capacity (kg)"
+                name="maxLoadCapacity"
+                value={formData.maxLoadCapacity}
+                onChange={handleChange}
+                InputProps={{ inputProps: { min: 0, step: 0.01 } }}
+                helperText="Maximum weight capacity in kilograms"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
                 type="number"

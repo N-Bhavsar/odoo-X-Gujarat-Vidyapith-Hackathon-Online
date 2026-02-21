@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { vehicleService } from "@/services";
 
 interface Vehicle {
   id: number;
@@ -15,41 +16,108 @@ interface Vehicle {
   status: string;
 }
 
-const initialVehicles: Vehicle[] = [
-  { id: 1, plate: "MH 00 AB 1234", model: "Tata Ace", type: "Mini Truck", capacity: "5 ton", odometer: 79000, status: "Available" },
-  { id: 2, plate: "MH 01 CD 5678", model: "Ashok Leyland", type: "Truck", capacity: "10 ton", odometer: 125000, status: "On Trip" },
-  { id: 3, plate: "DL 02 EF 9012", model: "Mahindra Bolero", type: "Van", capacity: "1.5 ton", odometer: 45000, status: "In Shop" },
-  { id: 4, plate: "KA 03 GH 3456", model: "Eicher Pro", type: "Truck", capacity: "8 ton", odometer: 98000, status: "Available" },
-  { id: 5, plate: "TN 04 IJ 7890", model: "Tata 407", type: "Mini Truck", capacity: "3 ton", odometer: 67000, status: "Retired" },
-];
-
 const statusClass = (s: string) => {
   switch (s) {
-    case "Available": return "status-available";
-    case "On Trip": return "status-on-trip";
-    case "In Shop": return "status-in-shop";
-    case "Retired": return "status-retired";
-    default: return "status-pill";
+    case "active":
+    case "Active":
+    case "Available":
+      return "status-available";
+    case "maintenance":
+    case "Maintenance":
+    case "In Shop":
+      return "status-in-shop";
+    case "inactive":
+    case "Inactive":
+      return "status-pill";
+    case "retired":
+    case "Retired":
+      return "status-retired";
+    default:
+      return "status-pill";
   }
 };
 
 const VehicleRegistry = () => {
-  const [vehicles, setVehicles] = useState(initialVehicles);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ plate: "", model: "", type: "", capacity: "", odometer: "" });
+  const [error, setError] = useState<string | null>(null);
+
+  const loadVehicles = async () => {
+    try {
+      const response = await vehicleService.listVehicles();
+      const mapped = response.vehicles.map((v) => ({
+        id: v.id,
+        plate: v.vehicleNumber,
+        model: `${v.make} ${v.model}`.trim(),
+        type: v.type,
+        capacity: v.maxLoadCapacity ? `${v.maxLoadCapacity} kg` : "-",
+        odometer: v.currentMileage || 0,
+        status: v.status.charAt(0).toUpperCase() + v.status.slice(1),
+      }));
+      setVehicles(mapped);
+    } catch (err: any) {
+      setError(err.message || "Failed to load vehicles");
+    }
+  };
+
+  useEffect(() => {
+    loadVehicles();
+  }, []);
 
   const filtered = vehicles.filter(
     (v) => v.plate.toLowerCase().includes(search.toLowerCase()) || v.model.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleCreate = () => {
-    setVehicles([...vehicles, { id: vehicles.length + 1, plate: form.plate, model: form.model, type: form.type, capacity: form.capacity, odometer: Number(form.odometer), status: "Available" }]);
-    setForm({ plate: "", model: "", type: "", capacity: "", odometer: "" });
-    setShowForm(false);
+  const mapVehicleType = (value: string) => {
+    const normalized = value.toLowerCase();
+    if (normalized.includes("bus")) return "bus";
+    if (normalized.includes("van")) return "van";
+    if (normalized.includes("bike") || normalized.includes("motor")) return "motorcycle";
+    if (normalized.includes("suv")) return "suv";
+    if (normalized.includes("sedan")) return "sedan";
+    return "truck";
   };
 
-  const handleDelete = (id: number) => setVehicles(vehicles.filter((v) => v.id !== id));
+  const parseCapacity = (value: string) => {
+    const numeric = Number(value.replace(/[^0-9.]/g, ""));
+    return Number.isNaN(numeric) ? undefined : numeric;
+  };
+
+  const handleCreate = async () => {
+    setError(null);
+    try {
+      const [make, ...modelParts] = form.model.trim().split(" ");
+      await vehicleService.createVehicle({
+        vehicleNumber: form.plate,
+        registrationNumber: form.plate,
+        make: make || "Fleet",
+        model: modelParts.join(" ") || form.model || "Vehicle",
+        year: new Date().getFullYear(),
+        type: mapVehicleType(form.type),
+        fuelType: "diesel",
+        status: "active",
+        currentMileage: Number(form.odometer) || 0,
+        maxLoadCapacity: parseCapacity(form.capacity),
+      });
+      setForm({ plate: "", model: "", type: "", capacity: "", odometer: "" });
+      setShowForm(false);
+      loadVehicles();
+    } catch (err: any) {
+      setError(err.message || "Failed to create vehicle");
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    setError(null);
+    try {
+      await vehicleService.deleteVehicle(id);
+      setVehicles(vehicles.filter((v) => v.id !== id));
+    } catch (err: any) {
+      setError(err.message || "Failed to delete vehicle");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -64,6 +132,7 @@ const VehicleRegistry = () => {
       </div>
 
       <div className="f1-card">
+        {error && <p className="text-xs text-destructive mb-3">{error}</p>}
         <div className="flex gap-3 mb-5">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

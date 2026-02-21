@@ -1,36 +1,35 @@
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Fuel, TrendingUp, Activity } from "lucide-react";
-
-const fuelData = [
-  { month: "Jan", efficiency: 45 },
-  { month: "Feb", efficiency: 52 },
-  { month: "Mar", efficiency: 48 },
-  { month: "Apr", efficiency: 70 },
-  { month: "May", efficiency: 65 },
-  { month: "Jun", efficiency: 80 },
-  { month: "Jul", efficiency: 75 },
-  { month: "Aug", efficiency: 90 },
-  { month: "Sep", efficiency: 85 },
-];
-
-const costliestVehicles = [
-  { name: "TRK-01", cost: 120 },
-  { name: "TRK-02", cost: 95 },
-  { name: "VAN-05", cost: 80 },
-  { name: "TRK-07", cost: 65 },
-  { name: "VAN-03", cost: 50 },
-];
-
-const summaryData = [
-  { month: "Jan", revenue: 1700000, fuelCost: 600000, maintenance: 200000, netProfit: 900000 },
-  { month: "Feb", revenue: 1500000, fuelCost: 550000, maintenance: 180000, netProfit: 770000 },
-  { month: "Mar", revenue: 1900000, fuelCost: 700000, maintenance: 250000, netProfit: 950000 },
-  { month: "Apr", revenue: 2100000, fuelCost: 650000, maintenance: 220000, netProfit: 1230000 },
-];
+import { useEffect, useState } from "react";
+import { analyticsService } from "@/services";
 
 const formatCurrency = (v: number) => `₹${(v / 100000).toFixed(1)}L`;
 
 const Analytics = () => {
+  const [kpis, setKpis] = useState({ fuelCost: 0, utilizationRate: 0, revenue: 0 });
+  const [summaryData, setSummaryData] = useState<any[]>([]);
+  const [costliestVehicles, setCostliestVehicles] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const overview = await analyticsService.fetchOverview();
+        const charts = await analyticsService.fetchCharts();
+        setKpis({
+          fuelCost: overview.kpis.fuelCost || 0,
+          utilizationRate: overview.kpis.utilizationRate || 0,
+          revenue: overview.kpis.revenue || 0,
+        });
+        setSummaryData(charts.summary || []);
+        setCostliestVehicles(charts.costliestVehicles || []);
+      } catch (err: any) {
+        setError(err.message || "Failed to load analytics");
+      }
+    };
+    load();
+  }, []);
+
   return (
     <div className="space-y-6">
       <div>
@@ -43,33 +42,35 @@ const Analytics = () => {
         <div className="kpi-card text-center">
           <Fuel className="h-5 w-5 text-f1-yellow mx-auto mb-2" />
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Fuel Cost</p>
-          <p className="text-2xl font-racing text-foreground mt-1">₹2.6L</p>
+          <p className="text-2xl font-racing text-foreground mt-1">{formatCurrency(kpis.fuelCost)}</p>
         </div>
         <div className="kpi-card text-center">
           <TrendingUp className="h-5 w-5 text-f1-green mx-auto mb-2" />
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Fleet ROI</p>
-          <p className="text-2xl font-racing text-foreground mt-1">+18%</p>
+          <p className="text-2xl font-racing text-foreground mt-1">{kpis.utilizationRate}%</p>
         </div>
         <div className="kpi-card text-center">
           <Activity className="h-5 w-5 text-f1-blue mx-auto mb-2" />
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Utilization Rate</p>
-          <p className="text-2xl font-racing text-foreground mt-1">82%</p>
+          <p className="text-2xl font-racing text-foreground mt-1">{kpis.utilizationRate}%</p>
         </div>
       </div>
+
+      {error && <p className="text-xs text-destructive">{error}</p>}
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="f1-card">
           <h3 className="font-racing text-sm text-foreground tracking-wider mb-4">Fuel Efficiency Trend (km/L)</h3>
           <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={fuelData}>
+            <LineChart data={summaryData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 15% 18%)" />
               <XAxis dataKey="month" stroke="hsl(220 10% 55%)" fontSize={12} />
               <YAxis stroke="hsl(220 10% 55%)" fontSize={12} />
               <Tooltip
                 contentStyle={{ backgroundColor: "hsl(220 18% 10%)", border: "1px solid hsl(220 15% 18%)", borderRadius: "8px", color: "hsl(0 0% 95%)" }}
               />
-              <Line type="monotone" dataKey="efficiency" stroke="hsl(0 85% 45%)" strokeWidth={2} dot={{ fill: "hsl(0 85% 45%)", strokeWidth: 0, r: 4 }} />
+              <Line type="monotone" dataKey="fuelCost" stroke="hsl(0 85% 45%)" strokeWidth={2} dot={{ fill: "hsl(0 85% 45%)", strokeWidth: 0, r: 4 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>

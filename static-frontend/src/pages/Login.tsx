@@ -5,16 +5,60 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import racingBg from "@/assets/racing-bg.jpg";
+import { authService } from "@/services";
 
 const Login = () => {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState("manager");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const roleMap: Record<string, string> = {
+    manager: "fleet_manager",
+    dispatcher: "dispatcher",
+    officer: "admin",
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/dashboard");
+    setError(null);
+    setLoading(true);
+
+    try {
+      if (isLogin) {
+        const response = await authService.login(email, password);
+        if (response.user) {
+          localStorage.setItem("user", JSON.stringify(response.user));
+        }
+      } else {
+        const parts = fullName.trim().split(" ").filter(Boolean);
+        const firstName = parts[0] || "Fleet";
+        const lastName = parts.slice(1).join(" ") || "User";
+        const response = await authService.register({
+          email,
+          password,
+          firstName,
+          lastName,
+          role: roleMap[role] || "fleet_manager",
+          phone: phone || undefined,
+        });
+        if (response.user) {
+          localStorage.setItem("user", JSON.stringify(response.user));
+        }
+      }
+
+      navigate("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -108,13 +152,24 @@ const Login = () => {
               {!isLogin && (
                 <div>
                   <Label className="text-xs text-muted-foreground uppercase tracking-wider">Full Name</Label>
-                  <Input className="mt-1.5 bg-secondary/50 border-border/50 text-foreground h-11 focus:border-primary focus:ring-1 focus:ring-primary/30" placeholder="Enter your name" />
+                  <Input
+                    className="mt-1.5 bg-secondary/50 border-border/50 text-foreground h-11 focus:border-primary focus:ring-1 focus:ring-primary/30"
+                    placeholder="Enter your name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
                 </div>
               )}
 
               <div>
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">Email</Label>
-                <Input className="mt-1.5 bg-secondary/50 border-border/50 text-foreground h-11 focus:border-primary focus:ring-1 focus:ring-primary/30" type="email" placeholder="driver@fleetflow.com" />
+                <Input
+                  className="mt-1.5 bg-secondary/50 border-border/50 text-foreground h-11 focus:border-primary focus:ring-1 focus:ring-primary/30"
+                  type="email"
+                  placeholder="driver@fleetflow.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
 
               <div>
@@ -124,6 +179,8 @@ const Login = () => {
                     className="bg-secondary/50 border-border/50 text-foreground pr-10 h-11 focus:border-primary focus:ring-1 focus:ring-primary/30"
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                   />
                   <button
                     type="button"
@@ -139,7 +196,12 @@ const Login = () => {
                 <>
                   <div>
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Phone</Label>
-                    <Input className="mt-1.5 bg-secondary/50 border-border/50 text-foreground h-11 focus:border-primary focus:ring-1 focus:ring-primary/30" placeholder="+91 XXXXX XXXXX" />
+                    <Input
+                      className="mt-1.5 bg-secondary/50 border-border/50 text-foreground h-11 focus:border-primary focus:ring-1 focus:ring-primary/30"
+                      placeholder="+91 XXXXX XXXXX"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                    />
                   </div>
                   <div>
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">License Number</Label>
@@ -148,8 +210,12 @@ const Login = () => {
                 </>
               )}
 
-              <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-racing tracking-wider h-12 text-base shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.01]">
-                {isLogin ? "🏁 Start Engine" : "Register"}
+                {error && (
+                  <p className="text-xs text-destructive text-center">{error}</p>
+                )}
+
+                <Button type="submit" disabled={loading} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-racing tracking-wider h-12 text-base shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.01]">
+                  {loading ? "Please wait..." : isLogin ? "🏁 Start Engine" : "Register"}
               </Button>
 
               {isLogin && (

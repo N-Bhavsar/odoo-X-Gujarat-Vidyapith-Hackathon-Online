@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { maintenanceService } from "@/services";
 
 interface ServiceLog {
   id: number;
@@ -13,13 +14,6 @@ interface ServiceLog {
   cost: string;
   status: string;
 }
-
-const initialLogs: ServiceLog[] = [
-  { id: 321, vehicle: "TATA Ace", issue: "Engine Issue", date: "20/02", cost: "₹10k", status: "New" },
-  { id: 322, vehicle: "Ashok Leyland", issue: "Brake Pad Replace", date: "18/02", cost: "₹5k", status: "In Progress" },
-  { id: 323, vehicle: "Eicher Pro", issue: "Oil Change", date: "15/02", cost: "₹3k", status: "Done" },
-  { id: 324, vehicle: "Mahindra Bolero", issue: "Tire Replacement", date: "12/02", cost: "₹8k", status: "New" },
-];
 
 const statusClass = (s: string) => {
   switch (s) {
@@ -31,27 +25,53 @@ const statusClass = (s: string) => {
 };
 
 const MaintenanceLogs = () => {
-  const [logs, setLogs] = useState(initialLogs);
+  const [logs, setLogs] = useState<ServiceLog[]>([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ vehicle: "", issue: "", date: "" });
+  const [form, setForm] = useState({ vehicleId: "", issue: "", date: "" });
+  const [error, setError] = useState<string | null>(null);
+
+  const loadLogs = async () => {
+    try {
+      const response = await maintenanceService.listMaintenance();
+      const mapped = response.logs.map((log) => ({
+        id: log.id,
+        vehicle: log.vehicle?.vehicleNumber || `Vehicle-${log.id}`,
+        issue: log.description,
+        date: new Date(log.serviceDate).toLocaleDateString(),
+        cost: log.cost ? `₹${log.cost}` : "TBD",
+        status: log.status === "in_progress" ? "In Progress" : log.status === "done" ? "Done" : "New",
+      }));
+      setLogs(mapped);
+    } catch (err: any) {
+      setError(err.message || "Failed to load logs");
+    }
+  };
+
+  useEffect(() => {
+    loadLogs();
+  }, []);
 
   const filtered = logs.filter((l) =>
     l.vehicle.toLowerCase().includes(search.toLowerCase()) ||
     l.issue.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleCreate = () => {
-    setLogs([...logs, {
-      id: logs.length + 321,
-      vehicle: form.vehicle,
-      issue: form.issue,
-      date: form.date,
-      cost: "TBD",
-      status: "New",
-    }]);
-    setForm({ vehicle: "", issue: "", date: "" });
-    setShowForm(false);
+  const handleCreate = async () => {
+    setError(null);
+    try {
+      await maintenanceService.createMaintenance({
+        vehicleId: Number(form.vehicleId),
+        type: "service",
+        description: form.issue,
+        serviceDate: form.date || new Date().toISOString(),
+      });
+      setForm({ vehicleId: "", issue: "", date: "" });
+      setShowForm(false);
+      loadLogs();
+    } catch (err: any) {
+      setError(err.message || "Failed to create log");
+    }
   };
 
   return (
@@ -67,6 +87,7 @@ const MaintenanceLogs = () => {
       </div>
 
       <div className="f1-card">
+        {error && <p className="text-xs text-destructive mb-3">{error}</p>}
         <div className="flex gap-3 mb-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -106,8 +127,8 @@ const MaintenanceLogs = () => {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Vehicle Name</Label>
-              <Input className="mt-1 bg-secondary border-border text-foreground" placeholder="TATA Ace" value={form.vehicle} onChange={(e) => setForm({ ...form, vehicle: e.target.value })} />
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Vehicle ID</Label>
+              <Input className="mt-1 bg-secondary border-border text-foreground" placeholder="1" value={form.vehicleId} onChange={(e) => setForm({ ...form, vehicleId: e.target.value })} />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Issue/Service</Label>

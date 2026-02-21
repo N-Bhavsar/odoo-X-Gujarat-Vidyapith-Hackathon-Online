@@ -1,0 +1,433 @@
+import { Request, Response } from 'express'
+import { validationResult } from 'express-validator'
+import { Op } from 'sequelize'
+import GPSLocation, { LocationSource } from '../models/GPSLocation'
+import Vehicle from '../models/Vehicle'
+import Trip from '../models/Trip'
+
+/**
+ * GPS Location Controller
+ * Handles real-time GPS tracking, location history, geofencing, and analytics
+ */
+
+// POST /api/gps/locations - Record new GPS location
+export const recordLocation = async (req: Request, res: Response) => {
+  try {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() })
+    }
+
+    const { vehicleId, tripId, latitude, longitude, altitude, accuracy, speed, heading, source, geofenceId } =
+      req.body
+
+    // Verify vehicle exists
+    const vehicle = await Vehicle.findByPk(vehicleId)
+    if (!vehicle) {
+      return res.status(404).json({ message: 'Vehicle not found' })
+    }
+
+    // Verify trip exists if provided
+    if (tripId) {
+      const trip = await Trip.findByPk(tripId)
+      if (!trip) {
+        return res.status(404).json({ message: 'Trip not found' })
+      }
+    }
+
+    // Create location record
+    const location = await GPSLocation.create({
+      vehicleId,
+      tripId: tripId || null,
+      latitude,
+      longitude,
+      altitude,
+      accuracy,
+      speed,
+      heading,
+      source: source || LocationSource.MOBILE_APP,
+      geofenceId,
+      timestamp: new Date(),
+      isIdle: speed !== undefined && parseFloat(speed) < 1
+    })
+
+    // Emit real-time update via Socket.io
+    const io = req.app.locals.io
+    if (io) {
+      const locationData = {
+        vehicleId: location.vehicleId,
+        tripId: location.tripId,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        speed: location.speed,
+        heading: location.heading,
+        timestamp: location.timestamp,
+        accuracy: location.accuracy,
+        isIdle: location.isIdle
+      }
+      io.to(`vehicle-${location.vehicleId}`).emit('location-update', locationData)
+      if (location.tripId) {
+        io.to(`trip-${location.tripId}`).emit('location-update', locationData)
+      }
+    }
+
+    res.status(201).json({
+      message: 'Location recorded successfully',
+      data: location
+    })
+  } catch (error) {
+    console.error('Error recording location:', error)
+    res.status(500).json({ message: 'Error recording location', error: error instanceof Error ? error.message : '' })
+  }
+}
+
+// GET /api/gps/vehicles/:vehicleId/current - Get current vehicle location
+export const getCurrentLocation = async (req: Request, res: Response) => {
+  try {
+    const { vehicleId } = req.params
+
+    const location = await GPSLocation.findOne({
+      where: { vehicleId },
+      order: [['timestamp', 'DESC']]
+    })
+
+    if (!location) {
+      return res.status(404).json({ message: 'No location found for this vehicle' })
+    }
+
+    res.json({ data: location })
+  } catch (error) {
+    console.error('Error fetching current location:', error)
+    res.status(500).json({
+      message: 'Error fetching current location',
+      error: error instanceof Error ? error.message : ''
+    })
+  }
+}
+
+// GET /api/gps/vehicles/:vehicleId/history - Get location history with filters
+export const getLocationHistory = async (req: Request, res: Response) => {
+  try {
+    const { vehicleId } = req.params
+    const { tripId, startDate, endDate, limit = 500, offset = 0 } = req.query
+
+    const whereConditions: any = { vehicleId }
+
+    if (tripId) {
+      whereConditions.tripId = tripId
+    }
+
+    if (startDate || endDate) {
+      whereConditions.timestamp = {}
+      if (startDate) {
+        whereConditions.timestamp[Op.gte] = new Date(startDate as string)
+      }
+      if (endDate) {
+        whereConditions.timestamp[Op.lte] = new Date(endDate as string)
+      }
+    }
+
+    const { count, rows } = await GPSLocation.findAndCountAll({
+      where: whereConditions,
+      order: [['timestamp', 'DESC']],
+      limit: Math.min(parseInt(limit as string) || 500, 5000),
+      offset: parseInt(offset as string) || 0
+    })
+
+    res.json({
+      data: rows,
+      pagination: {
+        total: count,
+        offset,
+        limit,
+        pages: Math.ceil(count / (parseInt(limit as string) || 500))
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching location history:', error)
+    res.status(500).json({
+      message: 'Error fetching location history',
+      error: error instanceof Error ? error.message : ''
+    })
+  }
+}
+
+// GET /api/gps/trips/:tripId/route - Get complete route for a trip
+export const getTripRoute = async (req: Request, res: Response) => {
+  try {
+    const { tripId } = req.params
+
+    const locations = await GPSLocation.findAll({
+      where: { tripId },
+      order: [['timestamp', 'ASC']]
+    })
+
+    if (locations.length === 0) {
+      return res.status(404).json({ message: 'No route data found for this trip' })
+    }
+
+    // Calculate route statistics
+    const totalDistance = calculateTotalRouteDistance(locations)
+    const averageSpeed = calculateAverageSpeed(locations)
+    const maxSpeed = calculateMaxSpeed(locations)
+    const tripDuration =
+      locations[locations.length - 1].timestamp.getTime() - locations[0].timestamp.getTime()
+
+    res.json({
+      data: {
+        waypoints: locations,
+        statistics: {
+          totalDistance: Math.round(totalDistance * 100) / 100,
+          averageSpeed: Math.round(averageSpeed * 100) / 100,
+          maxSpeed: Math.round(maxSpeed * 100) / 100,
+          tripDuration: Math.round(tripDuration / 1000),
+          pointCount: locations.length,
+          startTime: locations[0].timestamp,
+          endTime: locations[locations.length - 1].timestamp
+        }
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching trip route:', error)
+    res.status(500).json({
+      message: 'Error fetching trip route',
+      error: error instanceof Error ? error.message : ''
+    })
+  }
+}
+
+// GET /api/gps/vehicles/:vehicleId/idle-sessions - Get idle time tracking
+export const getIdleSessions = async (req: Request, res: Response) => {
+  try {
+    const { vehicleId } = req.params
+    const { startDate, endDate } = req.query
+
+    const whereConditions: any = { vehicleId, isIdle: true }
+
+    if (startDate || endDate) {
+      whereConditions.timestamp = {}
+      if (startDate) {
+        whereConditions.timestamp[Op.gte] = new Date(startDate as string)
+      }
+      if (endDate) {
+        whereConditions.timestamp[Op.lte] = new Date(endDate as string)
+      }
+    }
+
+    const idleLocations = await GPSLocation.findAll({
+      where: whereConditions,
+      order: [['timestamp', 'ASC']]
+    })
+
+    const idleSessions = groupIdleSessions(idleLocations)
+
+    res.json({ data: idleSessions })
+  } catch (error) {
+    console.error('Error fetching idle sessions:', error)
+    res.status(500).json({
+      message: 'Error fetching idle sessions',
+      error: error instanceof Error ? error.message : ''
+    })
+  }
+}
+
+// GET /api/gps/vehicles/:vehicleId/speeding-events - Get speeding violations
+export const getSpeedingEvents = async (req: Request, res: Response) => {
+  try {
+    const { vehicleId } = req.params
+    const { speedLimit = 80, startDate, endDate } = req.query
+
+    const whereConditions: any = { vehicleId }
+
+    if (startDate || endDate) {
+      whereConditions.timestamp = {}
+      if (startDate) {
+        whereConditions.timestamp[Op.gte] = new Date(startDate as string)
+      }
+      if (endDate) {
+        whereConditions.timestamp[Op.lte] = new Date(endDate as string)
+      }
+    }
+
+    const locations = await GPSLocation.findAll({
+      where: whereConditions,
+      order: [['timestamp', 'ASC']]
+    })
+
+    const limit = parseInt(speedLimit as string)
+    const speedingEvents = locations.filter((loc) => loc.isExcessiveSpeed(limit))
+
+    res.json({
+      data: {
+        speedLimit: limit,
+        violations: speedingEvents,
+        totalViolations: speedingEvents.length,
+        averageExcessSpeed:
+          speedingEvents.length > 0 ? calculateAverageExcessSpeed(speedingEvents, limit) : 0
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching speeding events:', error)
+    res.status(500).json({
+      message: 'Error fetching speeding events',
+      error: error instanceof Error ? error.message : ''
+    })
+  }
+}
+
+// GET /api/gps/vehicles - Get live status of all vehicles
+export const getAllVehiclesLiveStatus = async (req: Request, res: Response) => {
+  try {
+    const vehicles = await Vehicle.findAll({
+      attributes: ['id', 'registrationNumber', 'type', 'status']
+    })
+
+    // Get latest GPS locations for each vehicle
+    const vehicleIds = vehicles.map((v) => v.id)
+    const latestLocations = await GPSLocation.findAll({
+      where: { vehicleId: vehicleIds },
+      order: [['timestamp', 'DESC']]
+    })
+
+    // Build a map of vehicleId -> latest location
+    const latestLocationMap = new Map<number, GPSLocation>()
+    for (const loc of latestLocations) {
+      if (!latestLocationMap.has(loc.vehicleId)) {
+        latestLocationMap.set(loc.vehicleId, loc)
+      }
+    }
+
+    const liveStatus = vehicles.map((vehicle) => ({
+      id: vehicle.id,
+      registrationNumber: vehicle.registrationNumber,
+      vehicleType: vehicle.type,
+      status: vehicle.status,
+      currentLocation: latestLocationMap.get(vehicle.id) || null
+    }))
+
+    res.json({ data: liveStatus })
+  } catch (error) {
+    console.error('Error fetching vehicles live status:', error)
+    res.status(500).json({
+      message: 'Error fetching vehicles live status',
+      error: error instanceof Error ? error.message : ''
+    })
+  }
+}
+
+// DELETE /api/gps/locations - Delete old GPS records (cleanup)
+export const deleteOldLocations = async (req: Request, res: Response) => {
+  try {
+    const { daysOld = 30 } = req.body
+
+    const cutoffDate = new Date()
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld)
+
+    const result = await GPSLocation.destroy({
+      where: {
+        timestamp: {
+          [Op.lt]: cutoffDate
+        }
+      }
+    })
+
+    res.json({
+      message: `Deleted ${result} old GPS records`,
+      deletedRecords: result,
+      cutoffDate
+    })
+  } catch (error) {
+    console.error('Error deleting old locations:', error)
+    res.status(500).json({
+      message: 'Error deleting old locations',
+      error: error instanceof Error ? error.message : ''
+    })
+  }
+}
+
+// Helper functions
+function calculateTotalRouteDistance(locations: GPSLocation[]): number {
+  let totalDistance = 0
+  for (let i = 1; i < locations.length; i++) {
+    totalDistance += locations[i - 1].distanceTo(
+      parseFloat(locations[i].latitude.toString()),
+      parseFloat(locations[i].longitude.toString())
+    )
+  }
+  return totalDistance
+}
+
+function calculateAverageSpeed(locations: GPSLocation[]): number {
+  const validSpeeds = locations.filter((loc) => loc.speed !== null && loc.speed !== undefined)
+  if (validSpeeds.length === 0) return 0
+  const sum = validSpeeds.reduce((acc, loc) => acc + parseFloat(loc.speed!.toString()), 0)
+  return sum / validSpeeds.length
+}
+
+function calculateMaxSpeed(locations: GPSLocation[]): number {
+  const speeds = locations
+    .filter((loc) => loc.speed !== null && loc.speed !== undefined)
+    .map((loc) => parseFloat(loc.speed!.toString()))
+  return speeds.length > 0 ? Math.max(...speeds) : 0
+}
+
+function calculateAverageExcessSpeed(locations: GPSLocation[], speedLimit: number): number {
+  const excessSpeeds = locations
+    .filter((loc) => loc.speed && parseFloat(loc.speed.toString()) > speedLimit)
+    .map((loc) => parseFloat(loc.speed!.toString()) - speedLimit)
+  if (excessSpeeds.length === 0) return 0
+  return excessSpeeds.reduce((a, b) => a + b, 0) / excessSpeeds.length
+}
+
+function groupIdleSessions(idleLocations: GPSLocation[]): any[] {
+  const sessions: any[] = []
+  let currentSession: any = null
+  const IDLE_GROUP_THRESHOLD = 300000 // 5 minutes in milliseconds
+
+  for (const location of idleLocations) {
+    if (!currentSession) {
+      currentSession = {
+        startTime: location.timestamp,
+        endTime: location.timestamp,
+        startLocation: location.getCoordinates(),
+        endLocation: location.getCoordinates(),
+        duration: 0
+      }
+    } else {
+      const timeDiff = location.timestamp.getTime() - new Date(currentSession.endTime).getTime()
+
+      if (timeDiff < IDLE_GROUP_THRESHOLD) {
+        currentSession.endTime = location.timestamp
+        currentSession.endLocation = location.getCoordinates()
+        currentSession.duration =
+          new Date(currentSession.endTime).getTime() - new Date(currentSession.startTime).getTime()
+      } else {
+        sessions.push(currentSession)
+        currentSession = {
+          startTime: location.timestamp,
+          endTime: location.timestamp,
+          startLocation: location.getCoordinates(),
+          endLocation: location.getCoordinates(),
+          duration: 0
+        }
+      }
+    }
+  }
+
+  if (currentSession) {
+    sessions.push(currentSession)
+  }
+
+  return sessions
+}
+
+export default {
+  recordLocation,
+  getCurrentLocation,
+  getLocationHistory,
+  getTripRoute,
+  getIdleSessions,
+  getSpeedingEvents,
+  getAllVehiclesLiveStatus,
+  deleteOldLocations
+}

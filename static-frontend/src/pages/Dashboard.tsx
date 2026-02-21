@@ -1,33 +1,69 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Car, AlertTriangle, Activity, Package, TrendingUp, Fuel, ArrowUpRight } from "lucide-react";
-
-const kpis = [
-  { label: "Active Fleet", value: "24", icon: Car, change: "+3", color: "text-f1-green", bgColor: "bg-f1-green/10" },
-  { label: "In Maintenance", value: "5", icon: AlertTriangle, change: "-1", color: "text-f1-yellow", bgColor: "bg-f1-yellow/10" },
-  { label: "Utilization Rate", value: "82%", icon: Activity, change: "+5%", color: "text-f1-blue", bgColor: "bg-f1-blue/10" },
-  { label: "Pending Cargo", value: "12", icon: Package, change: "+2", color: "text-primary", bgColor: "bg-primary/10" },
-  { label: "Revenue (MTD)", value: "₹17L", icon: TrendingUp, change: "+8%", color: "text-f1-green", bgColor: "bg-f1-green/10" },
-  { label: "Fuel Cost (MTD)", value: "₹6L", icon: Fuel, change: "-3%", color: "text-f1-yellow", bgColor: "bg-f1-yellow/10" },
-];
-
-const recentTrips = [
-  { id: "T-001", vehicle: "Van-05", driver: "Alex Kumar", origin: "Mumbai", dest: "Pune", status: "On Trip" },
-  { id: "T-002", vehicle: "Truck-12", driver: "Ravi Singh", origin: "Delhi", dest: "Jaipur", status: "Completed" },
-  { id: "T-003", vehicle: "Bike-03", driver: "Priya Patel", origin: "Bangalore", dest: "Mysore", status: "Draft" },
-  { id: "T-004", vehicle: "Van-08", driver: "Suresh M", origin: "Chennai", dest: "Hyderabad", status: "Dispatched" },
-  { id: "T-005", vehicle: "Truck-03", driver: "Mohan R", origin: "Kolkata", dest: "Patna", status: "On Trip" },
-];
+import { analyticsService, tripService } from "@/services";
 
 const statusClass = (s: string) => {
   switch (s) {
-    case "On Trip": return "status-on-trip";
-    case "Completed": return "status-done";
-    case "Draft": return "status-new";
-    case "Dispatched": return "status-on-trip";
-    default: return "status-pill";
+    case "On Trip":
+    case "In Progress":
+      return "status-on-trip";
+    case "Completed":
+      return "status-done";
+    case "Draft":
+    case "Scheduled":
+      return "status-new";
+    case "Dispatched":
+      return "status-on-trip";
+    default:
+      return "status-pill";
   }
 };
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  const [kpis, setKpis] = useState([
+    { label: "Active Fleet", value: "0", icon: Car, change: "+0", color: "text-f1-green", bgColor: "bg-f1-green/10" },
+    { label: "In Maintenance", value: "0", icon: AlertTriangle, change: "+0", color: "text-f1-yellow", bgColor: "bg-f1-yellow/10" },
+    { label: "Utilization Rate", value: "0%", icon: Activity, change: "+0%", color: "text-f1-blue", bgColor: "bg-f1-blue/10" },
+    { label: "Pending Cargo", value: "0", icon: Package, change: "+0", color: "text-primary", bgColor: "bg-primary/10" },
+    { label: "Revenue (MTD)", value: "₹0", icon: TrendingUp, change: "+0%", color: "text-f1-green", bgColor: "bg-f1-green/10" },
+    { label: "Fuel Cost (MTD)", value: "₹0", icon: Fuel, change: "+0%", color: "text-f1-yellow", bgColor: "bg-f1-yellow/10" },
+  ]);
+  const [recentTrips, setRecentTrips] = useState<any[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const overview = await analyticsService.fetchOverview();
+        const trips = await tripService.listTrips({ limit: 5 });
+
+        setKpis([
+          { label: "Active Fleet", value: String(overview.kpis.activeFleet || 0), icon: Car, change: "+0", color: "text-f1-green", bgColor: "bg-f1-green/10" },
+          { label: "In Maintenance", value: String(overview.kpis.inMaintenance || 0), icon: AlertTriangle, change: "+0", color: "text-f1-yellow", bgColor: "bg-f1-yellow/10" },
+          { label: "Utilization Rate", value: `${overview.kpis.utilizationRate || 0}%`, icon: Activity, change: "+0%", color: "text-f1-blue", bgColor: "bg-f1-blue/10" },
+          { label: "Pending Cargo", value: String(overview.kpis.pendingCargo || 0), icon: Package, change: "+0", color: "text-primary", bgColor: "bg-primary/10" },
+          { label: "Revenue (MTD)", value: `₹${overview.kpis.revenue || 0}`, icon: TrendingUp, change: "+0%", color: "text-f1-green", bgColor: "bg-f1-green/10" },
+          { label: "Fuel Cost (MTD)", value: `₹${overview.kpis.fuelCost || 0}`, icon: Fuel, change: "+0%", color: "text-f1-yellow", bgColor: "bg-f1-yellow/10" },
+        ]);
+
+        const mappedTrips = trips.trips.map((trip) => ({
+          id: `T-${trip.id.toString().padStart(3, "0")}`,
+          vehicle: trip.vehicle?.vehicleNumber || "Fleet",
+          driver: trip.driver ? `${trip.driver.firstName} ${trip.driver.lastName}` : "Driver",
+          origin: trip.origin,
+          dest: trip.destination,
+          status: trip.status.replace(/_/g, " "),
+        }));
+        setRecentTrips(mappedTrips);
+      } catch {
+        // Ignore for now to keep UI responsive.
+      }
+    };
+
+    load();
+  }, []);
+
   return (
     <div className="space-y-8">
       <div className="flex items-end justify-between">
@@ -69,7 +105,7 @@ const Dashboard = () => {
             <h2 className="font-racing text-base text-foreground tracking-wider">Recent Trips</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Latest dispatched & active trips</p>
           </div>
-          <span className="text-xs text-primary font-semibold cursor-pointer hover:underline">View All →</span>
+          <span className="text-xs text-primary font-semibold cursor-pointer hover:underline" onClick={() => navigate("/trips")}>View All →</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">

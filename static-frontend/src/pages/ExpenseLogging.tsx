@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { expenseService } from "@/services";
 
 interface Expense {
   id: number;
@@ -15,36 +16,57 @@ interface Expense {
   status: string;
 }
 
-const initialExpenses: Expense[] = [
-  { id: 1, tripId: 321, driver: "John", distance: "1000 km", fuelExpense: "₹19k", miscExpense: "₹3k", status: "Done" },
-  { id: 2, tripId: 322, driver: "Alex", distance: "450 km", fuelExpense: "₹8k", miscExpense: "₹1k", status: "Pending" },
-  { id: 3, tripId: 323, driver: "Ravi", distance: "780 km", fuelExpense: "₹14k", miscExpense: "₹2k", status: "Done" },
-];
-
 const statusClass = (s: string) => {
   switch (s) { case "Done": return "status-done"; case "Pending": return "status-on-trip"; default: return "status-pill"; }
 };
 
 const ExpenseLogging = () => {
-  const [expenses, setExpenses] = useState(initialExpenses);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ tripId: "", driver: "", fuelCost: "", miscExpense: "" });
+  const [form, setForm] = useState({ tripId: "", driverId: "", amount: "", type: "fuel" });
+  const [error, setError] = useState<string | null>(null);
+
+  const loadExpenses = async () => {
+    try {
+      const response = await expenseService.listExpenses();
+      const mapped = response.expenses.map((expense) => ({
+        id: expense.id,
+        tripId: expense.tripId || 0,
+        driver: expense.driver ? `${expense.driver.firstName} ${expense.driver.lastName}` : "Driver",
+        distance: "N/A",
+        fuelExpense: `₹${expense.amount}`,
+        miscExpense: "-",
+        status: expense.status === "paid" ? "Done" : "Pending",
+      }));
+      setExpenses(mapped);
+    } catch (err: any) {
+      setError(err.message || "Failed to load expenses");
+    }
+  };
+
+  useEffect(() => {
+    loadExpenses();
+  }, []);
 
   const filtered = expenses.filter((e) => e.driver.toLowerCase().includes(search.toLowerCase()));
 
-  const handleCreate = () => {
-    setExpenses([...expenses, {
-      id: expenses.length + 1,
-      tripId: Number(form.tripId),
-      driver: form.driver,
-      distance: "N/A",
-      fuelExpense: `₹${form.fuelCost}`,
-      miscExpense: `₹${form.miscExpense}`,
-      status: "Pending",
-    }]);
-    setForm({ tripId: "", driver: "", fuelCost: "", miscExpense: "" });
-    setShowForm(false);
+  const handleCreate = async () => {
+    setError(null);
+    try {
+      await expenseService.createExpense({
+        tripId: form.tripId ? Number(form.tripId) : undefined,
+        driverId: form.driverId ? Number(form.driverId) : undefined,
+        type: form.type,
+        amount: Number(form.amount) || 0,
+        date: new Date().toISOString(),
+      });
+      setForm({ tripId: "", driverId: "", amount: "", type: "fuel" });
+      setShowForm(false);
+      loadExpenses();
+    } catch (err: any) {
+      setError(err.message || "Failed to create expense");
+    }
   };
 
   return (
@@ -60,6 +82,7 @@ const ExpenseLogging = () => {
       </div>
 
       <div className="f1-card">
+        {error && <p className="text-xs text-destructive mb-3">{error}</p>}
         <div className="flex gap-3 mb-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -100,9 +123,9 @@ const ExpenseLogging = () => {
           <div className="space-y-4">
             {[
               { label: "Trip ID", key: "tripId", placeholder: "321" },
-              { label: "Driver", key: "driver", placeholder: "John" },
-              { label: "Fuel Cost", key: "fuelCost", placeholder: "19000" },
-              { label: "Misc Expense", key: "miscExpense", placeholder: "3000" },
+              { label: "Driver ID", key: "driverId", placeholder: "1" },
+              { label: "Amount", key: "amount", placeholder: "19000" },
+              { label: "Type", key: "type", placeholder: "fuel" },
             ].map((f) => (
               <div key={f.key}>
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">{f.label}</Label>

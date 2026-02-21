@@ -38,6 +38,7 @@ export interface VehicleAttributes {
   status: VehicleStatus
   currentMileage: number
   seatingCapacity?: number
+  maxLoadCapacity?: number
   color?: string
   purchasePrice?: number
   currentValue?: number
@@ -53,7 +54,7 @@ export interface VehicleAttributes {
   updatedAt?: Date
 }
 
-interface VehicleCreationAttributes extends Optional<VehicleAttributes, 'id' | 'vin' | 'seatingCapacity' | 'color' | 'purchasePrice' | 'currentValue' | 'lastServiceDate' | 'nextServiceDue' | 'insuranceNumber' | 'insuranceExpiryDate' | 'registrationExpiryDate' | 'notes' | 'imageUrl' | 'assignedDriverId' | 'createdAt' | 'updatedAt'> {}
+interface VehicleCreationAttributes extends Optional<VehicleAttributes, 'id' | 'vin' | 'seatingCapacity' | 'maxLoadCapacity' | 'color' | 'purchasePrice' | 'currentValue' | 'lastServiceDate' | 'nextServiceDue' | 'insuranceNumber' | 'insuranceExpiryDate' | 'registrationExpiryDate' | 'notes' | 'imageUrl' | 'assignedDriverId' | 'createdAt' | 'updatedAt'> {}
 
 class Vehicle extends Model<VehicleAttributes, VehicleCreationAttributes> implements VehicleAttributes {
   public id!: number
@@ -68,6 +69,7 @@ class Vehicle extends Model<VehicleAttributes, VehicleCreationAttributes> implem
   public status!: VehicleStatus
   public currentMileage!: number
   public seatingCapacity?: number
+  public maxLoadCapacity?: number
   public color?: string
   public purchasePrice?: number
   public currentValue?: number
@@ -81,6 +83,11 @@ class Vehicle extends Model<VehicleAttributes, VehicleCreationAttributes> implem
   public assignedDriverId?: number
   public readonly createdAt!: Date
   public readonly updatedAt!: Date
+
+  // Association inclusion
+  public readonly gpsLocations?: any[]
+  public readonly trips?: any[]
+  public readonly assignedDrivers?: any[]
 }
 
 Vehicle.init(
@@ -140,6 +147,11 @@ Vehicle.init(
     seatingCapacity: {
       type: DataTypes.INTEGER,
       allowNull: true
+    },
+    maxLoadCapacity: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      comment: 'Maximum load capacity in kilograms'
     },
     color: {
       type: DataTypes.STRING(50),

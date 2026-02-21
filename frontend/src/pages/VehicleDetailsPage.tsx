@@ -269,6 +269,16 @@ const VehicleDetailsPage: React.FC = () => {
             </Typography>
             <Typography variant="body1">{currentVehicle.seatingCapacity || 'N/A'}</Typography>
           </Grid>
+          <Grid item xs={12} md={6}>
+            <Typography variant="subtitle2" color="textSecondary">
+              Max Load Capacity
+            </Typography>
+            <Typography variant="body1">
+              {currentVehicle.maxLoadCapacity 
+                ? `${Number(currentVehicle.maxLoadCapacity).toLocaleString()} kg` 
+                : 'N/A'}
+            </Typography>
+          </Grid>
         </Grid>
       </Paper>
 
