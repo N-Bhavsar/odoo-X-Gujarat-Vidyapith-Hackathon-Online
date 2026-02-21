@@ -4,6 +4,7 @@ import authReducer from './slices/authSlice'
 import vehicleReducer from './slices/vehicleSlice'
 import driverReducer from './slices/driverSlice'
 import tripReducer from './slices/tripSlice'
+import gpsReducer from './slices/gpsSlice'
 
 export const store = configureStore({
   reducer: {
@@ -11,6 +12,7 @@ export const store = configureStore({
     vehicles: vehicleReducer,
     drivers: driverReducer,
     trips: tripReducer,
+    gps: gpsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

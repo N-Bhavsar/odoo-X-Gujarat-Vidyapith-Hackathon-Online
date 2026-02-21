@@ -2,16 +2,33 @@ import express, { Application, Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import dotenv from 'dotenv'
+import { createServer } from 'http'
+import { Server as SocketIOServer } from 'socket.io'
 import { sequelize } from './config/database'
+import './models' // Initialize model associations
 import authRoutes from './routes/authRoutes'
 import vehicleRoutes from './routes/vehicleRoutes'
 import driverRoutes from './routes/driverRoutes'
 import driverVehicleAssignmentRoutes from './routes/driverVehicleAssignmentRoutes'
+import tripRoutes from './routes/tripRoutes'
+// import gpsRoutes from './routes/gpsRoutes' // Temporarily disabled - Phase 5
 
 dotenv.config()
 
 const app: Application = express()
 const PORT = process.env.PORT || 5000
+
+// Create HTTP server with Socket.io
+const httpServer = createServer(app)
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true
+  }
+})
+
+// Attach io instance to app for use in routes/controllers
+app.locals.io = io
 
 // Middleware
 app.use(helmet())
@@ -32,7 +49,90 @@ app.use('/api/auth', authRoutes)
 app.use('/api/vehicles', vehicleRoutes)
 app.use('/api/drivers', driverRoutes)
 app.use('/api/assignments', driverVehicleAssignmentRoutes)
-// app.use('/api/trips', tripRoutes)
+app.use('/api/trips', tripRoutes)
+// app.use('/api/gps', gpsRoutes) // Temporarily disabled - Phase 5
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log(`✓ User connected: ${socket.id}`)
+
+  // Join vehicle tracking room
+  socket.on('join-vehicle', (vehicleId: number) => {
+    socket.join(`vehicle-${vehicleId}`)
+    console.log(`✓ Socket ${socket.id} joined vehicle-${vehicleId}`)
+  })
+
+  // Leave vehicle tracking room
+  socket.on('leave-vehicle', (vehicleId: number) => {
+    socket.leave(`vehicle-${vehicleId}`)
+    console.log(`✓ Socket ${socket.id} left vehicle-${vehicleId}`)
+  })
+
+  // Join trip tracking room
+  socket.on('join-trip', (tripId: number) => {
+    socket.join(`trip-${tripId}`)
+    console.log(`✓ Socket ${socket.id} joined trip-${tripId}`)
+  })
+
+  // Handle real-time location updates
+  socket.on('location-update', (data: any) => {
+    if (data.vehicleId) {
+      io.to(`vehicle-${data.vehicleId}`).emit('location-update', data)
+      if (data.tripId) {
+        io.to(`trip-${data.tripId}`).emit('location-update', data)
+      }
+    }
+  })
+
+  // Disconnect
+  socket.on('disconnect', () => {
+    console.log(`✗ User disconnected: ${socket.id}`)
+  })
+})
+
+// Broadcast location updates via Socket.io when location is recorded
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const originalSend = res.send
+
+  res.send = function (data: any) {
+    // Check if this is a location recording endpoint
+    if (req.method === 'POST' && req.path === '/api/gps/locations' && res.statusCode === 201) {
+      try {
+        const responseData = typeof data === 'string' ? JSON.parse(data) : data
+        if (responseData.data && responseData.data.vehicleId) {
+          const location = responseData.data
+          io.to(`vehicle-${location.vehicleId}`).emit('location-update', {
+            vehicleId: location.vehicleId,
+            tripId: location.tripId,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            speed: location.speed,
+            heading: location.heading,
+            timestamp: location.timestamp,
+            accuracy: location.accuracy
+          })
+          if (location.tripId) {
+            io.to(`trip-${location.tripId}`).emit('location-update', {
+              vehicleId: location.vehicleId,
+              tripId: location.tripId,
+              latitude: location.latitude,
+              longitude: location.longitude,
+              speed: location.speed,
+              heading: location.heading,
+              timestamp: location.timestamp,
+              accuracy: location.accuracy
+            })
+          }
+        }
+      } catch (e) {
+        // Silently fail if not JSON
+      }
+    }
+    return originalSend.call(this, data)
+  }
+
+  next()
+})
 
 // Error handling middleware
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
@@ -55,8 +155,9 @@ const startServer = async () => {
       console.log('✓ Database models synchronized')
     }
     
-    app.listen(PORT, () => {
+    httpServer.listen(PORT, () => {
       console.log(`✓ Server running on port ${PORT}`)
+      console.log(`✓ Socket.io enabled for real-time updates`)
       console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`)
     })
   } catch (error) {
@@ -68,3 +169,4 @@ const startServer = async () => {
 startServer()
 
 export default app
+export { io }
