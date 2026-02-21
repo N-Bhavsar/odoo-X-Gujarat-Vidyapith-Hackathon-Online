@@ -1,0 +1,187 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --background: 220 20% 7%;
+    --foreground: 0 0% 95%;
+
+    --card: 220 18% 10%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 220 18% 10%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 0 85% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 15% 16%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 220 12% 14%;
+    --muted-foreground: 220 10% 55%;
+
+    --accent: 0 85% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 18%;
+    --input: 220 15% 18%;
+    --ring: 0 85% 45%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 220 22% 5%;
+    --sidebar-foreground: 0 0% 85%;
+    --sidebar-primary: 0 85% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 12%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 220 15% 13%;
+    --sidebar-ring: 0 85% 45%;
+
+    --f1-red: 0 85% 45%;
+    --f1-yellow: 45 100% 55%;
+    --f1-green: 145 65% 42%;
+    --f1-blue: 210 80% 50%;
+    --carbon: 220 20% 8%;
+    --carbon-light: 220 15% 12%;
+    --pit-glow: 0 85% 45%;
+  }
+
+  .dark {
+    --background: 220 20% 7%;
+    --foreground: 0 0% 95%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: 'Inter', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Orbitron', sans-serif;
+  }
+}
+
+@layer components {
+  .f1-card {
+    @apply bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-6;
+    box-shadow: 0 4px 24px hsl(0 0% 0% / 0.2), 0 0 0 1px hsl(0 0% 100% / 0.02), inset 0 1px 0 hsl(0 0% 100% / 0.03);
+  }
+
+  .f1-card:hover {
+    box-shadow: 0 8px 32px hsl(0 0% 0% / 0.3), 0 0 0 1px hsl(0 0% 100% / 0.04), inset 0 1px 0 hsl(0 0% 100% / 0.04);
+  }
+
+  .f1-glow {
+    box-shadow: 0 0 20px hsl(var(--f1-red) / 0.15), 0 0 60px hsl(var(--f1-red) / 0.05), 0 4px 24px hsl(0 0% 0% / 0.3);
+  }
+
+  .racing-stripe {
+    position: relative;
+  }
+  .racing-stripe::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    background: linear-gradient(180deg, hsl(var(--f1-red)), hsl(var(--f1-yellow)));
+    border-radius: 2px;
+    box-shadow: 0 0 8px hsl(var(--f1-red) / 0.4);
+  }
+
+  .status-pill {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider uppercase;
+  }
+
+  .status-available {
+    @apply status-pill;
+    background: hsl(var(--f1-green) / 0.12);
+    color: hsl(var(--f1-green));
+    border: 1px solid hsl(var(--f1-green) / 0.25);
+    box-shadow: 0 0 8px hsl(var(--f1-green) / 0.1);
+  }
+
+  .status-on-trip {
+    @apply status-pill;
+    background: hsl(var(--f1-blue) / 0.12);
+    color: hsl(var(--f1-blue));
+    border: 1px solid hsl(var(--f1-blue) / 0.25);
+    box-shadow: 0 0 8px hsl(var(--f1-blue) / 0.1);
+  }
+
+  .status-in-shop {
+    @apply status-pill;
+    background: hsl(var(--f1-yellow) / 0.12);
+    color: hsl(var(--f1-yellow));
+    border: 1px solid hsl(var(--f1-yellow) / 0.25);
+    box-shadow: 0 0 8px hsl(var(--f1-yellow) / 0.1);
+  }
+
+  .status-retired {
+    @apply status-pill;
+    background: hsl(var(--destructive) / 0.12);
+    color: hsl(var(--destructive));
+    border: 1px solid hsl(var(--destructive) / 0.25);
+  }
+
+  .status-done {
+    @apply status-pill;
+    background: hsl(var(--f1-green) / 0.12);
+    color: hsl(var(--f1-green));
+    border: 1px solid hsl(var(--f1-green) / 0.25);
+    box-shadow: 0 0 8px hsl(var(--f1-green) / 0.1);
+  }
+
+  .status-new {
+    @apply status-pill;
+    background: hsl(var(--f1-blue) / 0.12);
+    color: hsl(var(--f1-blue));
+    border: 1px solid hsl(var(--f1-blue) / 0.25);
+    box-shadow: 0 0 8px hsl(var(--f1-blue) / 0.1);
+  }
+
+  .carbon-bg {
+    background-image:
+      radial-gradient(ellipse at 20% 50%, hsl(var(--f1-red) / 0.03) 0%, transparent 50%),
+      linear-gradient(135deg, hsl(220 20% 7%) 0%, hsl(220 22% 5%) 100%);
+  }
+
+  /* Enhanced table row hover */
+  .data-table-row {
+    @apply border-b border-border/30 transition-all duration-200;
+  }
+  .data-table-row:hover {
+    @apply bg-secondary/40;
+    box-shadow: inset 3px 0 0 hsl(var(--f1-red) / 0.5);
+  }
+
+  /* Page section title */
+  .page-title {
+    @apply font-racing text-2xl text-foreground tracking-wider;
+    text-shadow: 0 0 30px hsl(var(--f1-red) / 0.15);
+  }
+
+  /* KPI card glow effect */
+  .kpi-card {
+    @apply f1-card racing-stripe pl-8 transition-all duration-300;
+  }
+  .kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px hsl(0 0% 0% / 0.4), inset 0 1px 0 hsl(0 0% 100% / 0.05);
+  }
+}
