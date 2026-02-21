@@ -39,7 +39,7 @@ import {
   getTripStatistics
 } from '../services/tripService'
 import { getAllDrivers } from '../services/driverService'
-import { getAllVehicles } from '../services/vehicleService'
+import vehicleService from '../services/vehicleService'
 import {
   fetchTripsStart,
   fetchTripsSuccess,
@@ -113,7 +113,7 @@ const TripDispatcher = () => {
   const fetchDriversAndVehicles = async () => {
     try {
       const driversData = await getAllDrivers(1, 100, { status: 'active' })
-      const vehiclesData = await getAllVehicles(1, 100, { status: 'active' })
+      const vehiclesData = await vehicleService.getVehicles({ status: 'active' })
       setDrivers(driversData.drivers || [])
       setVehicles(vehiclesData.vehicles || [])
     } catch (err) {

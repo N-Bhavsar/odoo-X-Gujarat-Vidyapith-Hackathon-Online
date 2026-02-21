@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
-import apiService from '../services/api'
+import api from '../../services/api'
 
 export interface GPSLocation {
   id: number
@@ -104,7 +104,7 @@ export const recordGPSLocation = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const response = await apiService.post('/gps/locations', locationData)
+      const response = await api.post('/gps/locations', locationData)
       return response.data.data
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to record location')
@@ -116,7 +116,7 @@ export const fetchCurrentLocation = createAsyncThunk(
   'gps/fetchCurrentLocation',
   async (vehicleId: number, { rejectWithValue }) => {
     try {
-      const response = await apiService.get(`/gps/vehicles/${vehicleId}/current`)
+      const response = await api.get(`/gps/vehicles/${vehicleId}/current`)
       return response.data.data
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch current location')
@@ -145,7 +145,7 @@ export const fetchLocationHistory = createAsyncThunk(
       if (params.limit) queryParams.append('limit', params.limit.toString())
       if (params.offset) queryParams.append('offset', params.offset.toString())
 
-      const response = await apiService.get(
+      const response = await api.get(
         `/gps/vehicles/${params.vehicleId}/history?${queryParams.toString()}`
       )
       return response.data.data
@@ -159,7 +159,7 @@ export const fetchTripRoute = createAsyncThunk(
   'gps/fetchTripRoute',
   async (tripId: number, { rejectWithValue }) => {
     try {
-      const response = await apiService.get(`/gps/trips/${tripId}/route`)
+      const response = await api.get(`/gps/trips/${tripId}/route`)
       return response.data.data
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch trip route')
@@ -182,7 +182,7 @@ export const fetchIdleSessions = createAsyncThunk(
       if (params.startDate) queryParams.append('startDate', params.startDate)
       if (params.endDate) queryParams.append('endDate', params.endDate)
 
-      const response = await apiService.get(
+      const response = await api.get(
         `/gps/vehicles/${params.vehicleId}/idle-sessions?${queryParams.toString()}`
       )
       return response.data.data
@@ -209,7 +209,7 @@ export const fetchSpeedingEvents = createAsyncThunk(
       if (params.startDate) queryParams.append('startDate', params.startDate)
       if (params.endDate) queryParams.append('endDate', params.endDate)
 
-      const response = await apiService.get(
+      const response = await api.get(
         `/gps/vehicles/${params.vehicleId}/speeding-events?${queryParams.toString()}`
       )
       return response.data.data
@@ -223,7 +223,7 @@ export const fetchAllVehiclesLiveStatus = createAsyncThunk(
   'gps/fetchAllVehiclesLiveStatus',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await apiService.get('/gps/vehicles')
+      const response = await api.get('/gps/vehicles')
       return response.data.data
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch live vehicles status')
