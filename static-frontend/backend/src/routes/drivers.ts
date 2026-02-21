@@ -14,7 +14,7 @@ const driverSchema = z.object({
   email: z.string().email(),
   phone: z.string().min(5),
   licenseNumber: z.string().min(4),
-  licenseClass: z.enum(["A", "B", "C", "D", "BE", "CE"]),
+  licenseClass: z.enum(["A", "B", "C", "D", "BE", "CE", "Van"]),
   licenseExpiryDate: z.string(),
   licenseIssueDate: z.string().optional(),
   address: z.string().optional(),
@@ -23,7 +23,7 @@ const driverSchema = z.object({
   zipCode: z.string().optional(),
   emergencyContactName: z.string().optional(),
   emergencyContactPhone: z.string().optional(),
-  status: z.enum(["active", "inactive", "suspended", "on_duty", "off_duty", "on_trip"]).optional(),
+  status: z.enum(["active", "inactive", "suspended", "on_duty", "off_duty", "on_trip", "out_of_service"]).optional(),
   safetyScore: z.number().optional(),
   totalTrips: z.number().optional(),
   completedTrips: z.number().optional(),
@@ -162,9 +162,24 @@ router.post(
   requireRole("fleet_manager"),
   asyncHandler(async (req, res) => {
     const data = driverSchema.parse(req.body)
+
+    // Validating "Van" category license
+    if (data.licenseClass === "Van") {
+      const expiry = new Date(data.licenseExpiryDate)
+      const now = new Date()
+      // Set to start of today for accurate comparison
+      now.setHours(0, 0, 0, 0)
+      expiry.setHours(0, 0, 0, 0)
+
+      if (expiry < now) {
+        return res.status(400).json({ message: "System verified: License validity expired for Van category." })
+      }
+    }
+
+    const parsedData = data as any;
     const driver = await prisma.driver.create({
       data: {
-        ...data,
+        ...parsedData,
         licenseExpiryDate: new Date(data.licenseExpiryDate),
         licenseIssueDate: data.licenseIssueDate ? new Date(data.licenseIssueDate) : undefined,
         hireDate: data.hireDate ? new Date(data.hireDate) : undefined,
@@ -189,10 +204,11 @@ router.put(
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     const data = driverSchema.partial().parse(req.body)
+    const parsedData = data as any;
     const driver = await prisma.driver.update({
       where: { id },
       data: {
-        ...data,
+        ...parsedData,
         licenseExpiryDate: data.licenseExpiryDate ? new Date(data.licenseExpiryDate) : undefined,
         licenseIssueDate: data.licenseIssueDate ? new Date(data.licenseIssueDate) : undefined,
         hireDate: data.hireDate ? new Date(data.hireDate) : undefined,
@@ -216,8 +232,8 @@ router.patch(
   requireRole("fleet_manager"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
-    const status = z.enum(["active", "inactive", "suspended", "on_duty", "off_duty", "on_trip"]).parse(req.body.status)
-    const driver = await prisma.driver.update({ where: { id }, data: { status } })
+    const status = z.enum(["active", "inactive", "suspended", "on_duty", "off_duty", "on_trip", "out_of_service"]).parse(req.body.status)
+    const driver = await prisma.driver.update({ where: { id }, data: { status: status as any } })
     res.json({ driver })
   })
 )

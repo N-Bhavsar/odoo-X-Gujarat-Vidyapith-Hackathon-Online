@@ -47,6 +47,7 @@ enum DriverStatus {
   on_duty
   off_duty
   on_trip
+  out_of_service
 }
 
 enum LicenseClass {
@@ -56,6 +57,7 @@ enum LicenseClass {
   D
   BE
   CE
+  Van
 }
 
 enum TripStatus {
@@ -92,56 +94,56 @@ enum ExpenseType {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  email      String   @unique
-  password   String
-  firstName  String
-  lastName   String
-  role       UserRole @default(driver)
-  phone      String?
-  isActive   Boolean  @default(true)
-  lastLogin  DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  driver     Driver?
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  firstName String
+  lastName  String
+  role      UserRole  @default(driver)
+  phone     String?
+  isActive  Boolean   @default(true)
+  lastLogin DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  driver    Driver?
 
   @@index([role])
 }
 
 model Driver {
-  id                    Int         @id @default(autoincrement())
-  userId                Int?        @unique
-  firstName             String
-  lastName              String
-  email                 String      @unique
-  phone                 String
-  licenseNumber         String      @unique
-  licenseClass          LicenseClass
-  licenseExpiryDate     DateTime
-  licenseIssueDate      DateTime?
-  address               String?
-  city                  String?
-  state                 String?
-  zipCode               String?
-  emergencyContactName  String?
-  emergencyContactPhone String?
-  status                DriverStatus @default(inactive)
-  safetyScore           Float       @default(5.0)
-  totalTrips            Int         @default(0)
-  completedTrips        Int         @default(0)
-  cancelledTrips        Int         @default(0)
-  hireDate              DateTime?
-  dateOfBirth           DateTime?
-  passportNumber        String?
+  id                       Int          @id @default(autoincrement())
+  userId                   Int?         @unique
+  firstName                String
+  lastName                 String
+  email                    String       @unique
+  phone                    String
+  licenseNumber            String       @unique
+  licenseClass             LicenseClass
+  licenseExpiryDate        DateTime
+  licenseIssueDate         DateTime?
+  address                  String?
+  city                     String?
+  state                    String?
+  zipCode                  String?
+  emergencyContactName     String?
+  emergencyContactPhone    String?
+  status                   DriverStatus @default(inactive)
+  safetyScore              Float        @default(5.0)
+  totalTrips               Int          @default(0)
+  completedTrips           Int          @default(0)
+  cancelledTrips           Int          @default(0)
+  hireDate                 DateTime?
+  dateOfBirth              DateTime?
+  passportNumber           String?
   medicalCertificateExpiry DateTime?
-  backgroundCheckDate   DateTime?
-  notes                 String?
-  profileImageUrl       String?
-  isActive              Boolean     @default(true)
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  backgroundCheckDate      DateTime?
+  notes                    String?
+  profileImageUrl          String?
+  isActive                 Boolean      @default(true)
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
 
-  user        User?                   @relation(fields: [userId], references: [id])
+  user        User?                     @relation(fields: [userId], references: [id])
   assignments DriverVehicleAssignment[]
   trips       Trip[]
   expenses    Expense[]
@@ -151,17 +153,17 @@ model Driver {
 }
 
 model Vehicle {
-  id                     Int       @id @default(autoincrement())
-  vehicleNumber          String    @unique
-  registrationNumber     String    @unique
+  id                     Int           @id @default(autoincrement())
+  vehicleNumber          String        @unique
+  registrationNumber     String        @unique
   make                   String
   model                  String
   year                   Int
-  vin                    String?   @unique
-  type                   VehicleType @default(sedan)
-  fuelType               FuelType @default(petrol)
+  vin                    String?       @unique
+  type                   VehicleType   @default(sedan)
+  fuelType               FuelType      @default(petrol)
   status                 VehicleStatus @default(active)
-  currentMileage         Float    @default(0)
+  currentMileage         Float         @default(0)
   seatingCapacity        Int?
   maxLoadCapacity        Float?
   color                  String?
@@ -175,28 +177,28 @@ model Vehicle {
   notes                  String?
   imageUrl               String?
   assignedDriverId       Int?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
 
-  assignments   DriverVehicleAssignment[]
-  trips         Trip[]
-  gpsLocations  GPSLocation[]
-  maintenance   MaintenanceLog[]
-  expenses      Expense[]
+  assignments  DriverVehicleAssignment[]
+  trips        Trip[]
+  gpsLocations GPSLocation[]
+  maintenance  MaintenanceLog[]
+  expenses     Expense[]
 
   @@index([status])
   @@index([type])
 }
 
 model DriverVehicleAssignment {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   driverId  Int
   vehicleId Int
-  startDate DateTime @default(now())
+  startDate DateTime  @default(now())
   endDate   DateTime?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   driver  Driver  @relation(fields: [driverId], references: [id])
   vehicle Vehicle @relation(fields: [vehicleId], references: [id])
@@ -207,7 +209,7 @@ model DriverVehicleAssignment {
 }
 
 model Trip {
-  id                 Int       @id @default(autoincrement())
+  id                 Int        @id @default(autoincrement())
   vehicleId          Int
   driverId           Int
   origin             String
@@ -221,11 +223,11 @@ model Trip {
   cargoDescription   String?
   cargoWeightKg      Float?
   notes              String?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
-  vehicle      Vehicle      @relation(fields: [vehicleId], references: [id])
-  driver       Driver       @relation(fields: [driverId], references: [id])
+  vehicle      Vehicle       @relation(fields: [vehicleId], references: [id])
+  driver       Driver        @relation(fields: [driverId], references: [id])
   gpsLocations GPSLocation[]
   expenses     Expense[]
 
@@ -236,23 +238,23 @@ model Trip {
 }
 
 model GPSLocation {
-  id                Int       @id @default(autoincrement())
-  tripId            Int?
-  vehicleId         Int
-  latitude          Float
-  longitude         Float
-  altitude          Float?
-  accuracy          Float?
-  speed             Float?
-  heading           Float?
-  source            LocationSource @default(mobile_app)
-  isGeofenceComplete Boolean @default(false)
-  geofenceId        String?
-  idleStartTime     DateTime?
-  isIdle            Boolean @default(false)
-  timestamp         DateTime @default(now())
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                 Int            @id @default(autoincrement())
+  tripId             Int?
+  vehicleId          Int
+  latitude           Float
+  longitude          Float
+  altitude           Float?
+  accuracy           Float?
+  speed              Float?
+  heading            Float?
+  source             LocationSource @default(mobile_app)
+  isGeofenceComplete Boolean        @default(false)
+  geofenceId         String?
+  idleStartTime      DateTime?
+  isIdle             Boolean        @default(false)
+  timestamp          DateTime       @default(now())
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   trip    Trip?   @relation(fields: [tripId], references: [id])
   vehicle Vehicle @relation(fields: [vehicleId], references: [id])
@@ -263,19 +265,19 @@ model GPSLocation {
 }
 
 model MaintenanceLog {
-  id             Int      @id @default(autoincrement())
-  vehicleId      Int
-  type           String
-  description    String
-  cost           Float?
-  serviceDate    DateTime
-  odometer       Int?
+  id              Int               @id @default(autoincrement())
+  vehicleId       Int
+  type            String
+  description     String
+  cost            Float?
+  serviceDate     DateTime
+  odometer        Int?
   nextServiceDate DateTime?
-  vendor         String?
-  status         MaintenanceStatus @default(new)
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  vendor          String?
+  status          MaintenanceStatus @default(new)
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id])
 
@@ -285,23 +287,23 @@ model MaintenanceLog {
 }
 
 model Expense {
-  id          Int         @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   tripId      Int?
   vehicleId   Int?
   driverId    Int?
   type        ExpenseType
   amount      Float
-  currency    String      @default("INR")
+  currency    String        @default("INR")
   date        DateTime
   description String?
   receiptUrl  String?
   status      ExpenseStatus @default(pending)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
-  trip    Trip?   @relation(fields: [tripId], references: [id])
+  trip    Trip?    @relation(fields: [tripId], references: [id])
   vehicle Vehicle? @relation(fields: [vehicleId], references: [id])
-  driver  Driver? @relation(fields: [driverId], references: [id])
+  driver  Driver?  @relation(fields: [driverId], references: [id])
 
   @@index([tripId])
   @@index([vehicleId])

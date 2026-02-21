@@ -24,3 +24,11 @@ export const listDrivers = async (filters: Record<string, string | number> = {})
   const query = params.toString() ? `?${params.toString()}` : ""
   return api.get(`/drivers${query}`) as Promise<{ drivers: Driver[] }>
 }
+
+export const createDriver = async (data: any) => {
+  return api.post('/drivers', data);
+}
+
+export const updateDriverStatus = async (id: number, status: string) => {
+  return api.patch(`/drivers/${id}/status`, { status });
+}
