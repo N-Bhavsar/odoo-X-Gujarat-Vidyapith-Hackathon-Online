@@ -2,7 +2,7 @@ import { Router } from "express"
 import { z } from "zod"
 import prisma from "../prisma"
 import { asyncHandler } from "../utils/async-handler"
-import { requireAuth } from "../middleware/auth"
+import { requireAuth, requireRole } from "../middleware/auth"
 import { getPagination } from "../utils/pagination"
 
 const router = Router()
@@ -164,6 +164,7 @@ router.get(
 router.post(
   "/",
   requireAuth,
+  requireRole("dispatcher"),
   asyncHandler(async (req, res) => {
     const data = tripSchema.parse(req.body)
     const trip = await prisma.trip.create({
@@ -183,6 +184,7 @@ router.post(
 router.put(
   "/:id",
   requireAuth,
+  requireRole("dispatcher"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     const data = tripSchema.partial().parse(req.body)
@@ -204,6 +206,7 @@ router.put(
 router.patch(
   "/:id/status",
   requireAuth,
+  requireRole("dispatcher"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     const status = z.enum(["scheduled", "in_progress", "completed", "cancelled"]).parse(req.body.status)
@@ -215,6 +218,7 @@ router.patch(
 router.post(
   "/:id/start",
   requireAuth,
+  requireRole("dispatcher"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     const trip = await prisma.trip.update({
@@ -228,6 +232,7 @@ router.post(
 router.post(
   "/:id/complete",
   requireAuth,
+  requireRole("dispatcher"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     const trip = await prisma.trip.update({
@@ -241,6 +246,7 @@ router.post(
 router.post(
   "/:id/cancel",
   requireAuth,
+  requireRole("dispatcher"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     const reason = req.body.reason ? String(req.body.reason) : "Cancelled"
@@ -255,6 +261,7 @@ router.post(
 router.delete(
   "/:id",
   requireAuth,
+  requireRole("admin"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     await prisma.trip.delete({ where: { id } })

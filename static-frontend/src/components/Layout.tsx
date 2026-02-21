@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -26,15 +26,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { hasAccess, getRoleDisplayName, type UserRole } from "@/lib/permissions";
 
-const navItems = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "Command Center" },
-  { to: "/vehicles", icon: Car, label: "Vehicle Registry" },
-  { to: "/trips", icon: MapPin, label: "Trip Dispatcher" },
-  { to: "/maintenance", icon: Wrench, label: "Maintenance Logs" },
-  { to: "/expenses", icon: DollarSign, label: "Expense & Fuel" },
-  { to: "/drivers", icon: Users, label: "Driver Performance" },
-  { to: "/analytics", icon: BarChart3, label: "Analytics" },
+const allNavItems = [
+  { to: "/dashboard", route: "dashboard", icon: LayoutDashboard, label: "Command Center" },
+  { to: "/vehicles", route: "vehicles", icon: Car, label: "Vehicle Registry" },
+  { to: "/trips", route: "trips", icon: MapPin, label: "Trip Dispatcher" },
+  { to: "/maintenance", route: "maintenance", icon: Wrench, label: "Maintenance Logs" },
+  { to: "/expenses", route: "expenses", icon: DollarSign, label: "Expense & Fuel" },
+  { to: "/drivers", route: "drivers", icon: Users, label: "Driver Performance" },
+  { to: "/analytics", route: "analytics", icon: BarChart3, label: "Analytics" },
 ];
 
 interface LayoutProps {
@@ -46,6 +47,12 @@ const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
+
+  // Filter navigation items based on user role
+  const navItems = useMemo(() => {
+    if (!user?.role) return []
+    return allNavItems.filter(item => hasAccess(user.role as UserRole, item.route))
+  }, [user?.role])
 
   useEffect(() => {
     const loadUser = async () => {
@@ -81,6 +88,11 @@ const Layout = ({ children }: LayoutProps) => {
   const getUserName = () => {
     if (!user) return "User";
     return `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User";
+  };
+
+  const getUserRoleDisplay = () => {
+    if (!user?.role) return "";
+    return getRoleDisplayName(user.role);
   };
 
   const currentPage = navItems.find((item) => item.to === location.pathname);
@@ -192,11 +204,11 @@ const Layout = ({ children }: LayoutProps) => {
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">{getUserName()}</p>
                     <p className="text-xs leading-none text-muted-foreground">{user?.email || ""}</p>
-                    <p className="text-xs leading-none text-primary capitalize">{user?.role?.replace(/_/g, " ") || ""}</p>
+                    <p className="text-xs leading-none text-primary font-semibold">{getUserRoleDisplay()}</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/dashboard")} className="cursor-pointer">
+                <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer">
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </DropdownMenuItem>

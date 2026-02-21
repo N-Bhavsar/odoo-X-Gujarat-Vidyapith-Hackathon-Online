@@ -13,7 +13,7 @@ const registerSchema = z.object({
   password: z.string().min(6),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
-  role: z.enum(["admin", "fleet_manager", "dispatcher", "driver"]).optional(),
+  role: z.enum(["admin", "fleet_manager", "dispatcher", "safety_officer", "financial_analyst", "driver"]).optional(),
   phone: z.string().optional()
 })
 

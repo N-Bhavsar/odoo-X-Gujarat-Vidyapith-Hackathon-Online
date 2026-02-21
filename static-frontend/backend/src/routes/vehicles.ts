@@ -2,7 +2,7 @@ import { Router } from "express"
 import { z } from "zod"
 import prisma from "../prisma"
 import { asyncHandler } from "../utils/async-handler"
-import { requireAuth } from "../middleware/auth"
+import { requireAuth, requireRole } from "../middleware/auth"
 import { getPagination } from "../utils/pagination"
 
 const router = Router()
@@ -110,6 +110,7 @@ router.get(
 router.post(
   "/",
   requireAuth,
+  requireRole("fleet_manager"),
   asyncHandler(async (req, res) => {
     const data = vehicleSchema.parse(req.body)
     const vehicle = await prisma.vehicle.create({
@@ -128,6 +129,7 @@ router.post(
 router.put(
   "/:id",
   requireAuth,
+  requireRole("fleet_manager"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     const data = vehicleSchema.partial().parse(req.body)
@@ -148,6 +150,7 @@ router.put(
 router.delete(
   "/:id",
   requireAuth,
+  requireRole("admin"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     await prisma.vehicle.delete({ where: { id } })

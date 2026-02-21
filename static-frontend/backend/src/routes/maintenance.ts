@@ -2,7 +2,7 @@ import { Router } from "express"
 import { z } from "zod"
 import prisma from "../prisma"
 import { asyncHandler } from "../utils/async-handler"
-import { requireAuth } from "../middleware/auth"
+import { requireAuth, requireRole } from "../middleware/auth"
 import { getPagination } from "../utils/pagination"
 
 const router = Router()
@@ -48,6 +48,7 @@ router.get(
 router.post(
   "/",
   requireAuth,
+  requireRole("fleet_manager"),
   asyncHandler(async (req, res) => {
     const data = maintenanceSchema.parse(req.body)
     const log = await prisma.maintenanceLog.create({
@@ -64,6 +65,7 @@ router.post(
 router.put(
   "/:id",
   requireAuth,
+  requireRole("fleet_manager"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     const data = maintenanceSchema.partial().parse(req.body)
@@ -82,6 +84,7 @@ router.put(
 router.patch(
   "/:id/status",
   requireAuth,
+  requireRole("fleet_manager"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     const status = z.enum(["new", "in_progress", "done"]).parse(req.body.status)
@@ -93,6 +96,7 @@ router.patch(
 router.delete(
   "/:id",
   requireAuth,
+  requireRole("admin"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     await prisma.maintenanceLog.delete({ where: { id } })

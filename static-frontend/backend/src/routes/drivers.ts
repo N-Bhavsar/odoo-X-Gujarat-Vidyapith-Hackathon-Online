@@ -2,7 +2,7 @@ import { Router } from "express"
 import { z } from "zod"
 import prisma from "../prisma"
 import { asyncHandler } from "../utils/async-handler"
-import { requireAuth } from "../middleware/auth"
+import { requireAuth, requireRole } from "../middleware/auth"
 import { getPagination } from "../utils/pagination"
 
 const router = Router()
@@ -159,6 +159,7 @@ router.get(
 router.post(
   "/",
   requireAuth,
+  requireRole("fleet_manager"),
   asyncHandler(async (req, res) => {
     const data = driverSchema.parse(req.body)
     const driver = await prisma.driver.create({
@@ -184,6 +185,7 @@ router.post(
 router.put(
   "/:id",
   requireAuth,
+  requireRole("fleet_manager"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     const data = driverSchema.partial().parse(req.body)
@@ -211,6 +213,7 @@ router.put(
 router.patch(
   "/:id/status",
   requireAuth,
+  requireRole("fleet_manager"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     const status = z.enum(["active", "inactive", "suspended", "on_duty", "off_duty", "on_trip"]).parse(req.body.status)
@@ -222,6 +225,7 @@ router.patch(
 router.patch(
   "/:id/safety-score",
   requireAuth,
+  requireRole("safety_officer"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     const safetyScore = z.number().min(0).max(10).parse(req.body.safetyScore)
@@ -233,6 +237,7 @@ router.patch(
 router.patch(
   "/:id/trips",
   requireAuth,
+  requireRole("dispatcher"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     const type = z.enum(["total", "completed", "cancelled"]).parse(req.body.type)
@@ -249,6 +254,7 @@ router.patch(
 router.delete(
   "/:id",
   requireAuth,
+  requireRole("admin"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     await prisma.driver.delete({ where: { id } })

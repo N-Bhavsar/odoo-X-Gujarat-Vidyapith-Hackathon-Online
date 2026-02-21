@@ -11,6 +11,8 @@ enum UserRole {
   admin
   fleet_manager
   dispatcher
+  safety_officer
+  financial_analyst
   driver
 }
 

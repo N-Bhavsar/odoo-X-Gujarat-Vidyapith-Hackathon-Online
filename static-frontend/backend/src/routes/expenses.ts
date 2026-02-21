@@ -2,7 +2,7 @@ import { Router } from "express"
 import { z } from "zod"
 import prisma from "../prisma"
 import { asyncHandler } from "../utils/async-handler"
-import { requireAuth } from "../middleware/auth"
+import { requireAuth, requireRole } from "../middleware/auth"
 import { getPagination } from "../utils/pagination"
 
 const router = Router()
@@ -50,6 +50,7 @@ router.get(
 router.post(
   "/",
   requireAuth,
+  requireRole("financial_analyst"),
   asyncHandler(async (req, res) => {
     const data = expenseSchema.parse(req.body)
     const expense = await prisma.expense.create({
@@ -67,6 +68,7 @@ router.post(
 router.put(
   "/:id",
   requireAuth,
+  requireRole("financial_analyst"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     const data = expenseSchema.partial().parse(req.body)
@@ -85,6 +87,7 @@ router.put(
 router.patch(
   "/:id/status",
   requireAuth,
+  requireRole("financial_analyst"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     const status = z.enum(["pending", "approved", "rejected", "paid"]).parse(req.body.status)
@@ -96,6 +99,7 @@ router.patch(
 router.delete(
   "/:id",
   requireAuth,
+  requireRole("admin"),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id)
     await prisma.expense.delete({ where: { id } })

@@ -11,7 +11,7 @@ const updateSchema = z.object({
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
   phone: z.string().optional(),
-  role: z.enum(["admin", "fleet_manager", "dispatcher", "driver"]).optional(),
+  role: z.enum(["admin", "fleet_manager", "dispatcher", "safety_officer", "financial_analyst", "driver"]).optional(),
   isActive: z.boolean().optional()
 })
 
